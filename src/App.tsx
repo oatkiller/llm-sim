@@ -10,6 +10,8 @@ import { simulationStateAtom, llmProviderAtom } from './store/simulation';
 import { LLMService } from './lib/llm';
 import { CHARACTER_TEMPLATES } from './lib/character';
 import type { SimulationState } from './types/simulation';
+import { SimulationRequests } from './components/SimulationRequests';
+import { ECSSystem, type SimulationRequest } from './lib/ecs';
 
 const worker = new Worker(new URL('./workers/simulation.worker.ts', import.meta.url), {
   type: 'module'
@@ -17,21 +19,21 @@ const worker = new Worker(new URL('./workers/simulation.worker.ts', import.meta.
 
 const DEFAULT_SIMS = [
   {
-    id: '1',
+    id: 'detective',
     name: 'The Detective',
     status: 'idle' as const,
     contextLog: [],
     speed: 0,
-    currentPrompt: CHARACTER_TEMPLATES.detective.prompt,
+    currentPrompt: '',
     character: CHARACTER_TEMPLATES.detective
   },
   {
-    id: '2',
+    id: 'scientist',
     name: 'The Scientist',
     status: 'idle' as const,
     contextLog: [],
     speed: 0,
-    currentPrompt: CHARACTER_TEMPLATES.scientist.prompt,
+    currentPrompt: '',
     character: CHARACTER_TEMPLATES.scientist
   }
 ];
@@ -40,6 +42,8 @@ export const App: React.FC = () => {
   const [state, setState] = useAtom(simulationStateAtom);
   const [llmProvider] = useAtom(llmProviderAtom);
   const llmServiceRef = useRef<LLMService | null>(null);
+  const ecsRef = useRef<ECSSystem>(new ECSSystem());
+  const [pendingRequests, setPendingRequests] = React.useState<SimulationRequest[]>([]);
 
   useEffect(() => {
     if (llmProvider) {
@@ -49,11 +53,19 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     // Initialize with default simulations
-    setState(prev => ({
+    setState((prev: SimulationState) => ({
       ...prev,
       sims: DEFAULT_SIMS,
       activeSimId: DEFAULT_SIMS[0].id
     }));
+
+    // Run first tick
+    const newState = ecsRef.current.tick({
+      sims: DEFAULT_SIMS,
+      activeSimId: DEFAULT_SIMS[0].id
+    });
+    setState(newState);
+    setPendingRequests(ecsRef.current.getPendingRequests());
 
     worker.onmessage = (e) => {
       const { type, payload } = e.data;
@@ -65,7 +77,17 @@ export const App: React.FC = () => {
     return () => {
       worker.terminate();
     };
-  }, [setState]);
+  }, []);
+
+  const handleApproveRequest = (requestId: string) => {
+    ecsRef.current.approveRequest(requestId);
+    setPendingRequests(ecsRef.current.getPendingRequests());
+  };
+
+  const handleRejectRequest = (requestId: string) => {
+    ecsRef.current.rejectRequest(requestId);
+    setPendingRequests(ecsRef.current.getPendingRequests());
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -94,6 +116,22 @@ export const App: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Help & Documentation</h2>
           <Help />
         </div>
+
+        {llmProvider ? (
+          <>
+            <SimulationRequests
+              requests={pendingRequests}
+              onApprove={handleApproveRequest}
+              onReject={handleRejectRequest}
+            />
+          </>
+        ) : (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-700">
+              Please set your API key and select a model to start simulating.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

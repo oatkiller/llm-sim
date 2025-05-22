@@ -1,4 +1,4 @@
-import type { LLMProvider, Sim, LLMFunction } from '../types/simulation';
+import type { LLMProvider, Simulation, LLMFunction } from '../types/simulation';
 import OpenAI from 'openai';
 import { getDefaultStore } from 'jotai';
 import { debugModeAtom, pendingMessagesAtom, type PendingMessage } from '../store/debug';
@@ -10,7 +10,7 @@ export class LLMService {
 
   constructor(provider: LLMProvider) {
     this.provider = provider;
-    if (provider.name === 'openai') {
+    if (provider.type === 'openai') {
       this.openai = new OpenAI({
         apiKey: provider.apiKey,
         dangerouslyAllowBrowser: true
@@ -18,8 +18,24 @@ export class LLMService {
     }
   }
 
+  async testConnection(): Promise<{ duration: number; tokens: number }> {
+    if (!this.openai) throw new Error('OpenAI client not initialized');
+
+    const startTime = Date.now();
+    const response = await this.openai.chat.completions.create({
+      model: this.provider.model,
+      messages: [{ role: 'user', content: 'Test connection' }],
+      max_tokens: 5
+    });
+
+    const duration = Date.now() - startTime;
+    const tokens = response.usage?.total_tokens || 0;
+
+    return { duration, tokens };
+  }
+
   private async callOpenAI(
-    sim: Sim,
+    sim: Simulation,
     availableFunctions: LLMFunction[],
     rules: string[]
   ): Promise<string> {
@@ -65,7 +81,7 @@ export class LLMService {
   }
 
   private async interceptMessage(
-    sim: Sim,
+    sim: Simulation,
     content: string,
     onApprove: (content: string) => void
   ): Promise<string> {
@@ -92,17 +108,17 @@ export class LLMService {
   }
 
   async getSimAction(
-    sim: Sim,
+    sim: Simulation,
     availableFunctions: LLMFunction[],
     rules: string[]
   ): Promise<string> {
     let content: string;
-    switch (this.provider.name) {
+    switch (this.provider.type) {
       case 'openai':
         content = await this.callOpenAI(sim, availableFunctions, rules);
         break;
       default:
-        throw new Error(`Unsupported LLM provider: ${this.provider.name}`);
+        throw new Error(`Unsupported LLM provider: ${this.provider.type}`);
     }
 
     return this.interceptMessage(sim, content, (approvedContent) => {

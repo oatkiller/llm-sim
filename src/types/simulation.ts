@@ -1,8 +1,17 @@
+export interface LogMetadata {
+  source?: string;
+  confidence?: number;
+  tokens?: number;
+  model?: string;
+  duration?: number;
+  error?: string;
+}
+
 export interface LogEntry {
   timestamp: number;
   type: 'prompt' | 'response' | 'system' | 'simulation';
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: LogMetadata;
 }
 
 export interface Simulation {
@@ -22,7 +31,7 @@ export interface Simulation {
 export interface SimulationState {
   sims: Simulation[];
   activeSimId?: string;
-  nextStepTimer?: number;
+  nextStepTimer?: NodeJS.Timeout;
 }
 
 export interface LLMProvider {

@@ -1,14 +1,56 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useAtom } from 'jotai';
 import { simulationStateAtom } from '../store/simulation';
 import type { LogEntry } from '../types/simulation';
 import { worker } from '../workers/simulation.worker';
+import { ECSSystem } from '../lib/ecs';
 
 export const SimulationControls: React.FC = () => {
   const [state, setState] = useAtom(simulationStateAtom);
+  const ecsRef = useRef<ECSSystem>(new ECSSystem());
+
+  const handleStart = () => {
+    if (!state.activeSimId) return;
+
+    setState(prev => ({
+      ...prev,
+      sims: prev.sims.map(sim =>
+        sim.id === state.activeSimId
+          ? { ...sim, status: 'running' }
+          : sim
+      )
+    }));
+
+    // Run ECS tick
+    const newState = ecsRef.current.tick(state);
+    setState(newState);
+  };
+
+  const handlePause = () => {
+    if (!state.activeSimId) return;
+
+    setState(prev => ({
+      ...prev,
+      sims: prev.sims.map(sim =>
+        sim.id === state.activeSimId
+          ? { ...sim, status: 'paused' }
+          : sim
+      )
+    }));
+  };
+
+  const handleStep = () => {
+    if (!state.activeSimId) return;
+
+    // Run ECS tick
+    const newState = ecsRef.current.tick(state);
+    setState(newState);
+  };
+
   const activeSim = state.sims.find(sim => sim.id === state.activeSimId);
 
   const handleNextStep = () => {
+    if (!state.activeSimId) return;
     // Send message to worker to process next step
     worker.postMessage({ type: 'NEXT_STEP', payload: { simId: state.activeSimId } });
   };
@@ -49,41 +91,60 @@ export const SimulationControls: React.FC = () => {
     );
   };
 
-  return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold mb-2">Simulation Controls</h3>
-        <div className="flex gap-4 items-center">
-          <button
-            onClick={handleNextStep}
-            className="btn bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            Next Step
-          </button>
-          <div className="flex items-center gap-2">
-            <label>Speed:</label>
-            <input
-              type="range"
-              min="0"
-              max="5"
-              step="1"
-              value={activeSim?.speed || 0}
-              onChange={(e) => handleSpeedChange(Number(e.target.value))}
-              className="w-32"
-            />
-            <span>{activeSim?.speed || 0}s</span>
-          </div>
-        </div>
+  if (!activeSim) {
+    return (
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="text-lg font-semibold mb-2">No Active Simulation</h3>
+        <p className="text-gray-500">Select a simulation to begin.</p>
       </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow p-4 mb-4">
+      <h3 className="text-lg font-semibold mb-4">Simulation Controls</h3>
+      
+      <div className="flex items-center gap-4 mb-4">
+        <button
+          onClick={handleStart}
+          disabled={!activeSim || activeSim.status === 'running'}
+          className="px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Start
+        </button>
+        
+        <button
+          onClick={handlePause}
+          disabled={!activeSim || activeSim.status !== 'running'}
+          className="px-4 py-2 text-sm font-medium text-white bg-yellow-500 rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Pause
+        </button>
+        
+        <button
+          onClick={handleStep}
+          disabled={!activeSim || activeSim.status === 'running'}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Step
+        </button>
+      </div>
+
+      {activeSim && (
+        <div className="text-sm text-gray-600">
+          <p>Status: <span className="font-medium">{activeSim.status}</span></p>
+          <p>Speed: <span className="font-medium">{activeSim.speed}s</span></p>
+        </div>
+      )}
 
       <div className="mt-4">
         <h3 className="text-lg font-semibold mb-2">Simulation Log</h3>
         <div className="h-96 overflow-y-auto border rounded p-4 bg-gray-50">
-          {activeSim?.contextLog.map(renderLogEntry)}
+          {activeSim.contextLog.map(renderLogEntry)}
         </div>
       </div>
 
-      {activeSim?.currentPrompt && (
+      {activeSim.currentPrompt && (
         <div className="mt-4">
           <h3 className="text-lg font-semibold mb-2">Current Prompt</h3>
           <div className="p-4 bg-gray-50 rounded border">

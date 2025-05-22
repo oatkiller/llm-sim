@@ -51,7 +51,7 @@ const processNextStep = async (simId: string) => {
     const timerId = setTimeout(() => {
       processNextStep(simId);
     }, sim.speed * 1000);
-    state.nextStepTimer = timerId as unknown as number;
+    state.nextStepTimer = timerId;
   }
 };
 
@@ -71,7 +71,7 @@ self.onmessage = (e) => {
 
     case 'PAUSE':
       if (state.nextStepTimer) {
-        clearTimeout(state.nextStepTimer as unknown as NodeJS.Timeout);
+        clearTimeout(state.nextStepTimer);
         state.nextStepTimer = undefined;
       }
       break;
