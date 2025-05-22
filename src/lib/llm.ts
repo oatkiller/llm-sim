@@ -7,7 +7,8 @@ export class LLMService {
 
   constructor(provider: LLMProvider) {
     this.client = new OpenAI({
-      apiKey: provider.apiKey
+      apiKey: provider.apiKey,
+      dangerouslyAllowBrowser: true
     });
   }
 
