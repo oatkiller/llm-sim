@@ -4,15 +4,37 @@ import { SettingsForm } from './components/SettingsForm';
 import { CreateSimForm } from './components/CreateSimForm';
 import { SimList } from './components/SimList';
 import { ApiKeyForm } from './components/ApiKeyForm';
-import { DebugPanel } from './components/DebugPanel';
 import { Help } from './components/Help';
+import { SimulationControls } from './components/SimulationControls';
 import { simulationStateAtom, llmProviderAtom } from './store/simulation';
 import { LLMService } from './lib/llm';
+import { CHARACTER_TEMPLATES } from './lib/character';
 import type { SimulationState } from './types/simulation';
 
 const worker = new Worker(new URL('./workers/simulation.worker.ts', import.meta.url), {
   type: 'module'
 });
+
+const DEFAULT_SIMS = [
+  {
+    id: '1',
+    name: 'The Detective',
+    status: 'idle' as const,
+    contextLog: [],
+    speed: 0,
+    currentPrompt: CHARACTER_TEMPLATES.detective.prompt,
+    character: CHARACTER_TEMPLATES.detective
+  },
+  {
+    id: '2',
+    name: 'The Scientist',
+    status: 'idle' as const,
+    contextLog: [],
+    speed: 0,
+    currentPrompt: CHARACTER_TEMPLATES.scientist.prompt,
+    character: CHARACTER_TEMPLATES.scientist
+  }
+];
 
 export const App: React.FC = () => {
   const [state, setState] = useAtom(simulationStateAtom);
@@ -26,6 +48,13 @@ export const App: React.FC = () => {
   }, [llmProvider]);
 
   useEffect(() => {
+    // Initialize with default simulations
+    setState(prev => ({
+      ...prev,
+      sims: DEFAULT_SIMS,
+      activeSimId: DEFAULT_SIMS[0].id
+    }));
+
     worker.onmessage = (e) => {
       const { type, payload } = e.data;
       if (type === 'STATE_UPDATE') {
@@ -37,45 +66,6 @@ export const App: React.FC = () => {
       worker.terminate();
     };
   }, [setState]);
-
-  const handleStart = () => {
-    worker.postMessage({
-      type: 'INIT',
-      payload: { state }
-    });
-  };
-
-  const handlePause = () => {
-    worker.postMessage({ type: 'PAUSE' });
-  };
-
-  const handleResume = () => {
-    worker.postMessage({ type: 'RESUME' });
-  };
-
-  const handleExportState = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'simulation-state.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleExportLog = () => {
-    const log = state.sims.map(sim => ({
-      name: sim.name,
-      contextLog: sim.contextLog
-    }));
-    const blob = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'simulation-log.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -95,11 +85,15 @@ export const App: React.FC = () => {
             <SimList />
           </div>
         </div>
+
+        <div className="mt-8">
+          <SimulationControls />
+        </div>
+
         <div className="mt-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Help & Documentation</h2>
           <Help />
         </div>
-        <DebugPanel />
       </div>
     </div>
   );

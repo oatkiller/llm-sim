@@ -1,88 +1,84 @@
-import type { SimulationState, System } from '../types/simulation';
-import { allSystems } from '../systems/core';
+import type { Simulation, SimulationState } from '../types/simulation';
+import { parseCharacterResponse } from '../lib/character';
 
-let simulationState: SimulationState | null = null;
-let isRunning = false;
-let lastTickTime = 0;
+export const worker = new Worker(new URL('./simulation.worker.ts', import.meta.url), {
+  type: 'module'
+});
 
-const TICK_INTERVAL = 1000; // 1 second per tick
+let state: SimulationState = {
+  sims: [],
+  activeSimId: undefined,
+  nextStepTimer: undefined
+};
 
-function updateSimulation() {
-  if (!simulationState || !isRunning) return;
+const processNextStep = async (simId: string) => {
+  const sim = state.sims.find(s => s.id === simId);
+  if (!sim) return;
 
-  const currentTime = Date.now();
-  const elapsed = currentTime - lastTickTime;
-  
-  if (elapsed >= TICK_INTERVAL / simulationState.settings.speed) {
-    lastTickTime = currentTime;
-    
-    // Run all systems
-    let newState = { ...simulationState };
-    for (const system of allSystems) {
-      newState = system.update(newState);
-    }
-    
-    simulationState = {
-      ...newState,
-      tick: newState.tick + 1
-    };
-
-    // Send updated state back to main thread
-    self.postMessage({
-      type: 'STATE_UPDATE',
-      state: simulationState
+  // Add current prompt to log
+  if (sim.currentPrompt) {
+    sim.contextLog.push({
+      timestamp: Date.now(),
+      type: 'prompt',
+      content: sim.currentPrompt
     });
   }
 
-  // Schedule next update
-  requestAnimationFrame(updateSimulation);
-}
+  // Process the step (in a real app, this would call the LLM)
+  const response = "Character response would go here";
+  sim.contextLog.push({
+    timestamp: Date.now(),
+    type: 'response',
+    content: response
+  });
 
-self.onmessage = (e: MessageEvent) => {
+  // Update state
+  state = {
+    ...state,
+    sims: state.sims.map(s => 
+      s.id === simId ? { ...s, contextLog: [...s.contextLog] } : s
+    )
+  };
+
+  // Notify main thread
+  self.postMessage({
+    type: 'STATE_UPDATE',
+    payload: { state }
+  });
+
+  // Schedule next step if speed > 0
+  if (sim.speed > 0) {
+    const timerId = setTimeout(() => {
+      processNextStep(simId);
+    }, sim.speed * 1000);
+    state.nextStepTimer = timerId as unknown as number;
+  }
+};
+
+self.onmessage = (e) => {
   const { type, payload } = e.data;
 
   switch (type) {
     case 'INIT':
-      simulationState = payload.state;
-      isRunning = true;
-      lastTickTime = Date.now();
-      requestAnimationFrame(updateSimulation);
+      state = payload.state;
+      break;
+
+    case 'NEXT_STEP':
+      if (payload.simId) {
+        processNextStep(payload.simId);
+      }
       break;
 
     case 'PAUSE':
-      isRunning = false;
+      if (state.nextStepTimer) {
+        clearTimeout(state.nextStepTimer as unknown as NodeJS.Timeout);
+        state.nextStepTimer = undefined;
+      }
       break;
 
     case 'RESUME':
-      isRunning = true;
-      lastTickTime = Date.now();
-      requestAnimationFrame(updateSimulation);
-      break;
-
-    case 'UPDATE_SETTINGS':
-      if (simulationState) {
-        simulationState = {
-          ...simulationState,
-          settings: payload.settings
-        };
-      }
-      break;
-
-    case 'ADD_SIM':
-      if (simulationState) {
-        simulationState = {
-          ...simulationState,
-          sims: [...simulationState.sims, payload.sim]
-        };
-      }
-      break;
-
-    case 'REMOVE_SIM':
-      if (simulationState) {
-        simulationState = {
-          ...simulationState,
-          sims: simulationState.sims.filter(sim => sim.id !== payload.simId)
-        };
+      if (state.activeSimId) {
+        processNextStep(state.activeSimId);
       }
       break;
   }

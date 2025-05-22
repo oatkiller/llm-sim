@@ -1,7 +1,34 @@
-export interface Sim {
+export interface LogEntry {
+  timestamp: number;
+  type: 'prompt' | 'response' | 'system' | 'simulation';
+  content: string;
+  metadata?: Record<string, any>;
+}
+
+export interface Simulation {
   id: string;
   name: string;
-  contextLog: string[];
+  status: 'idle' | 'running' | 'paused';
+  contextLog: LogEntry[];
+  currentPrompt?: string;
+  speed: number; // 0 means manual, >0 means auto-step every N seconds
+  character: {
+    name: string;
+    traits: string[];
+    background: string;
+  };
+}
+
+export interface SimulationState {
+  sims: Simulation[];
+  activeSimId?: string;
+  nextStepTimer?: number;
+}
+
+export interface LLMProvider {
+  type: 'openai' | 'anthropic';
+  apiKey: string;
+  model: string;
 }
 
 export interface SimulationSettings {
@@ -10,17 +37,6 @@ export interface SimulationSettings {
   allowXRatedContent: boolean;
   ruleSet: string;
   customRules: string[];
-}
-
-export interface SimulationState {
-  isRunning: boolean;
-  sims: Sim[];
-}
-
-export interface LLMProvider {
-  name: string;
-  apiKey: string;
-  model: string;
 }
 
 export interface System {
