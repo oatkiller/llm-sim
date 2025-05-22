@@ -1,18 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAtom } from 'jotai';
 import * as Form from '@radix-ui/react-form';
-import { llmProviderAtom } from '../store/simulation';
+import { llmProviderAtom, apiTestSuccessAtom } from '../store/simulation';
 import type { LLMProvider, LogEntry } from '../types/simulation';
 import { LLMService } from '../lib/llm';
 
 export const ApiKeyForm: React.FC = () => {
   const [llmProvider, setLlmProvider] = useAtom(llmProviderAtom);
+  const [apiTestSuccess, setApiTestSuccess] = useAtom(apiTestSuccessAtom);
   const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string>('');
   const [formData, setFormData] = useState({
     apiKey: '',
     model: ''
   });
+
+  // Populate form with stored API key on mount
+  useEffect(() => {
+    if (llmProvider) {
+      setFormData({
+        apiKey: llmProvider.apiKey,
+        model: llmProvider.model
+      });
+      if (apiTestSuccess) {
+        setStatus('success');
+      }
+    }
+  }, [llmProvider, apiTestSuccess]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -41,9 +55,11 @@ export const ApiKeyForm: React.FC = () => {
 
       setStatus('success');
       setLlmProvider(provider);
+      setApiTestSuccess(true);
     } catch (err) {
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Failed to connect to API');
+      setApiTestSuccess(false);
     }
   };
 

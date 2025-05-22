@@ -3,10 +3,11 @@ import type { Simulation, SimulationState } from '../types/simulation';
 export interface SimulationRequest {
   id: string;
   simId: string;
-  type: 'action' | 'interaction' | 'observation';
+  type: 'action' | 'interaction' | 'observation' | 'initialization';
   content: string;
   timestamp: number;
   status: 'pending' | 'approved' | 'rejected';
+  metadata?: Record<string, any>;
 }
 
 export interface System {
@@ -20,6 +21,37 @@ export class ECSSystem {
 
   constructor() {
     this.systems = [
+      {
+        name: 'character_initialization',
+        update: (state: SimulationState) => {
+          // Find characters without initialization requests
+          return {
+            ...state,
+            sims: state.sims.map(sim => {
+              const hasInitRequest = this.requests.some(
+                req => req.simId === sim.id && req.type === 'initialization'
+              );
+
+              if (!hasInitRequest) {
+                const request: SimulationRequest = {
+                  id: crypto.randomUUID(),
+                  simId: sim.id,
+                  type: 'initialization',
+                  content: `Character creation system requested completion to generate backstory for '${sim.name}'`,
+                  timestamp: Date.now(),
+                  status: 'pending',
+                  metadata: {
+                    character: sim.character
+                  }
+                };
+
+                this.requests.push(request);
+              }
+              return sim;
+            })
+          };
+        }
+      },
       {
         name: 'character',
         update: (state: SimulationState) => {

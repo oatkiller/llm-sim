@@ -11,7 +11,14 @@ export interface LogEntry {
   timestamp: number;
   type: 'prompt' | 'response' | 'system' | 'simulation';
   content: string;
-  metadata?: LogMetadata;
+  metadata?: Record<string, any>;
+}
+
+export interface Character {
+  name: string;
+  traits: string[];
+  background?: string;
+  state?: Record<string, any>;
 }
 
 export interface Simulation {
@@ -19,25 +26,31 @@ export interface Simulation {
   name: string;
   status: 'idle' | 'running' | 'paused';
   contextLog: LogEntry[];
+  speed: number;
   currentPrompt?: string;
-  speed: number; // 0 means manual, >0 means auto-step every N seconds
-  character: {
-    name: string;
-    traits: string[];
-    background: string;
-  };
+  character: Character;
 }
 
 export interface SimulationState {
   sims: Simulation[];
   activeSimId?: string;
-  nextStepTimer?: NodeJS.Timeout;
+  nextStepTimer?: number;
 }
 
 export interface LLMProvider {
-  type: 'openai' | 'anthropic';
+  type: 'openai';
   apiKey: string;
   model: string;
+}
+
+export interface LLMResponse {
+  content: string;
+  metadata?: Record<string, any>;
+}
+
+export interface CharacterBackgroundResponse {
+  background: string;
+  state: Record<string, any>;
 }
 
 export interface SimulationSettings {

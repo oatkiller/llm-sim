@@ -1,13 +1,98 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useAtom } from 'jotai';
-import { simulationStateAtom } from '../store/simulation';
+import { simulationStateAtom, llmProviderAtom } from '../store/simulation';
 import type { LogEntry } from '../types/simulation';
 import { worker } from '../workers/simulation.worker';
 import { ECSSystem } from '../lib/ecs';
+import { LLMService } from '../lib/llm';
 
 export const SimulationControls: React.FC = () => {
   const [state, setState] = useAtom(simulationStateAtom);
+  const [llmProvider] = useAtom(llmProviderAtom);
   const ecsRef = useRef<ECSSystem>(new ECSSystem());
+
+  const processApprovedRequests = async () => {
+    if (!llmProvider) return;
+
+    const llm = new LLMService(llmProvider);
+    const approvedRequests = ecsRef.current.getPendingRequests().filter(req => req.status === 'approved');
+
+    for (const request of approvedRequests) {
+      try {
+        let response;
+        if (request.type === 'initialization') {
+          // Handle character initialization
+          response = await llm.generateCharacterBackground(request.metadata?.character);
+          
+          // Update character with background
+          setState(prev => ({
+            ...prev,
+            sims: prev.sims.map(sim => 
+              sim.id === request.simId
+                ? { 
+                    ...sim, 
+                    character: {
+                      ...sim.character,
+                      background: response.background,
+                      state: response.state
+                    }
+                  }
+                : sim
+            )
+          }));
+        } else {
+          // Handle other request types
+          response = await llm.processRequest(request);
+        }
+
+        // Add response to log
+        setState(prev => ({
+          ...prev,
+          sims: prev.sims.map(sim =>
+            sim.id === request.simId
+              ? {
+                  ...sim,
+                  contextLog: [
+                    ...sim.contextLog,
+                    {
+                      timestamp: Date.now(),
+                      type: 'response',
+                      content: response.content,
+                      metadata: response.metadata
+                    }
+                  ]
+                }
+              : sim
+          )
+        }));
+      } catch (error) {
+        console.error('Error processing request:', error);
+        // Add error to log
+        setState(prev => ({
+          ...prev,
+          sims: prev.sims.map(sim =>
+            sim.id === request.simId
+              ? {
+                  ...sim,
+                  contextLog: [
+                    ...sim.contextLog,
+                    {
+                      timestamp: Date.now(),
+                      type: 'system',
+                      content: `Error processing request: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                      metadata: { error: true }
+                    }
+                  ]
+                }
+              : sim
+          )
+        }));
+      }
+    }
+
+    // Clear processed requests
+    ecsRef.current.clearProcessedRequests();
+  };
 
   const handleStart = () => {
     if (!state.activeSimId) return;
@@ -39,12 +124,15 @@ export const SimulationControls: React.FC = () => {
     }));
   };
 
-  const handleStep = () => {
+  const handleStep = async () => {
     if (!state.activeSimId) return;
 
     // Run ECS tick
     const newState = ecsRef.current.tick(state);
     setState(newState);
+
+    // Process any approved requests
+    await processApprovedRequests();
   };
 
   const activeSim = state.sims.find(sim => sim.id === state.activeSimId);
