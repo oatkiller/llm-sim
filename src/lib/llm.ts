@@ -1,5 +1,8 @@
 import type { LLMProvider, Sim, LLMFunction } from '../types/simulation';
 import OpenAI from 'openai';
+import { getDefaultStore } from 'jotai';
+import { debugModeAtom, pendingMessagesAtom, type PendingMessage } from '../store/debug';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 export class LLMService {
   private provider: LLMProvider;
@@ -22,7 +25,7 @@ export class LLMService {
   ): Promise<string> {
     if (!this.openai) throw new Error('OpenAI client not initialized');
 
-    const messages = [
+    const messages: ChatCompletionMessageParam[] = [
       {
         role: 'system',
         content: `You are a simulation participant named ${sim.name}. You have the following context:\n${
@@ -61,17 +64,51 @@ export class LLMService {
     return message.content || '';
   }
 
+  private async interceptMessage(
+    sim: Sim,
+    content: string,
+    onApprove: (content: string) => void
+  ): Promise<string> {
+    const store = getDefaultStore();
+    const debugMode = store.get(debugModeAtom);
+
+    if (!debugMode) {
+      return content;
+    }
+
+    return new Promise((resolve) => {
+      const message: PendingMessage = {
+        id: crypto.randomUUID(),
+        simName: sim.name,
+        content,
+        timestamp: Date.now(),
+        onApprove: (approvedContent) => {
+          resolve(approvedContent);
+        }
+      };
+
+      store.set(pendingMessagesAtom, (prev) => [...prev, message]);
+    });
+  }
+
   async getSimAction(
     sim: Sim,
     availableFunctions: LLMFunction[],
     rules: string[]
   ): Promise<string> {
+    let content: string;
     switch (this.provider.name) {
       case 'openai':
-        return this.callOpenAI(sim, availableFunctions, rules);
+        content = await this.callOpenAI(sim, availableFunctions, rules);
+        break;
       default:
         throw new Error(`Unsupported LLM provider: ${this.provider.name}`);
     }
+
+    return this.interceptMessage(sim, content, (approvedContent) => {
+      // The content has been approved and potentially modified
+      return approvedContent;
+    });
   }
 }
 

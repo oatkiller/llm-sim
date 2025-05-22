@@ -2,9 +2,6 @@ export interface Sim {
   id: string;
   name: string;
   contextLog: string[];
-  traits: Record<string, number>;
-  createdAt: number;
-  lastUpdated: number;
 }
 
 export interface SimulationSettings {
@@ -16,10 +13,8 @@ export interface SimulationSettings {
 }
 
 export interface SimulationState {
-  sims: Sim[];
-  settings: SimulationSettings;
-  tick: number;
   isRunning: boolean;
+  sims: Sim[];
 }
 
 export interface LLMProvider {
@@ -36,7 +31,14 @@ export interface System {
 export interface LLMFunction {
   name: string;
   description: string;
-  parameters: Record<string, unknown>;
+  parameters: {
+    type: string;
+    properties: Record<string, {
+      type: string;
+      description: string;
+    }>;
+    required: string[];
+  };
   execute: (params: Record<string, unknown>) => void;
 }
 
