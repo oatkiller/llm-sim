@@ -5,6 +5,7 @@ import { CreateSimForm } from './components/CreateSimForm';
 import { SimList } from './components/SimList';
 import { ApiKeyForm } from './components/ApiKeyForm';
 import { DebugPanel } from './components/DebugPanel';
+import { Help } from './components/Help';
 import { simulationStateAtom, llmProviderAtom } from './store/simulation';
 import { LLMService } from './lib/llm';
 import type { SimulationState } from './types/simulation';
@@ -93,6 +94,10 @@ export const App: React.FC = () => {
           <div>
             <SimList />
           </div>
+        </div>
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Help & Documentation</h2>
+          <Help />
         </div>
         <DebugPanel />
       </div>
