@@ -1,13 +1,14 @@
 # Sim System - Core Viewing & Creation PRD
 
 ## Overview
-The Sim System is a flexible character/entity simulation platform where "sims" are defined by evolving text logs and associated metadata. Users can create, view, and manage diverse simulated entities ranging from characters to objects to natural phenomena. This PRD focuses on the core MVP functionality: viewing existing sims and creating new ones.
+The Sim System is a flexible character/entity simulation platform where "sims" are defined by evolving text logs and associated metadata. Users can create, view, and manage diverse simulated entities ranging from characters to objects to natural phenomena. This PRD focuses on the core MVP functionality: viewing existing sims and creating new ones with strict constraints and a minimal but powerful feature set.
 
 ## Problem Statement
 Users need a simple, intuitive way to:
 - View all their simulated entities (sims) and their details at a glance
 - Create new sims quickly and easily
 - Access both the simulation logs and metadata for each sim in an organized format
+- Visually distinguish sims with tiny custom icons/images
 
 ## Core Features
 
@@ -15,28 +16,44 @@ Users need a simple, intuitive way to:
 **What it does:** Displays a comprehensive list of all sims with their logs and metadata
 **Why it's important:** This is the main interface users will interact with - the central hub of the application
 **How it works:**
-- Renders a scrollable list of all sims in the system
+- Renders a virtualized scrollable list of all sims using React Virtua
 - Each sim entry shows:
   - The complete log string (with appropriate formatting/truncation for long logs)
   - All associated metadata in a generic, readable format
+  - Micro-image icon (16x16px favicon-size) if present in metadata
   - Visual distinction between sims with empty logs vs populated logs
+- Performance optimized for 1000+ sims with virtual scrolling
 
 ### 2. New Sim Creation
 **What it does:** Allows users to create new sims with initial configuration
 **Why it's important:** Entry point for users to populate their simulation world
 **How it works:**
 - Simple form interface to create a new sim
-- Optional initial log text input
+- Optional initial log text input (max 10,000 characters)
 - Basic metadata fields (name, type, description, tags)
+- Micro-image upload/creation tool for 16x16px icons
 - Creates sim with empty log if no initial text provided
+- Strict validation on all inputs
 
-### 3. Generic Metadata Display
-**What it does:** Renders sim metadata in a flexible, extensible format
-**Why it's important:** Supports user-defined metadata without constraining the data structure
+### 3. Generic Metadata Display with Micro-Images
+**What it does:** Renders sim metadata in a flexible, extensible format with tiny visual icons
+**Why it's important:** Supports user-defined metadata without constraining structure, plus visual identification
 **How it works:**
 - Dynamic rendering of key-value pairs
 - Support for text descriptions, IDs, titles, tags, and custom attributes
+- Micro-image display (16x16px, max 1KB file size) as metadata field
+- Simple pixel art editor for creating custom icons/crests/symbols
 - Clean, readable presentation regardless of metadata structure
+
+### 4. Micro-Image Icon System
+**What it does:** Allows users to create and assign tiny custom images to sims
+**Why it's important:** Visual distinction and personalization within strict constraints
+**How it works:**
+- 16x16 pixel canvas editor (favicon size)
+- PNG format, max 1KB file size
+- Base64 encoding for storage
+- Pre-built icon templates (arrows, shapes, symbols)
+- Used as visual identifiers in sim list and metadata display
 
 ## User Experience
 
@@ -48,107 +65,249 @@ Users need a simple, intuitive way to:
 ### Key User Flows
 1. **View Sims Flow:**
    - User opens application
-   - Sees complete list of all sims
+   - Sees virtualized list of all sims with performance optimization
    - Can scroll through and read sim logs and metadata
+   - Easily identifies sims by their micro-image icons
    - Easily identifies which sims need attention (empty logs)
 
 2. **Create Sim Flow:**
    - User clicks "Create New Sim" button
    - Fills out basic information (name, optional initial log)
-   - Submits form
+   - Optionally creates or selects a 16x16px icon
+   - Submits form with validation
    - New sim appears in the main list
 
+3. **Icon Creation Flow:**
+   - User clicks icon editor in sim creation
+   - Uses 16x16 pixel canvas with simple tools
+   - Saves icon (auto-validates size and format)
+   - Icon appears as metadata in sim display
+
 ### UI/UX Considerations
-- Clean, scannable list layout
+- Clean, scannable list layout with micro-image visual hierarchy
 - Clear visual hierarchy between log content and metadata
 - Responsive design for different screen sizes
 - Intuitive creation flow with minimal friction
+- Strict form validation with helpful error messages
+- Performance-first design with virtual scrolling
 
 ## Technical Architecture
 
-### System Components
-- **Frontend:** React/Vue application with component-based architecture
-- **Data Storage:** JSON-based local storage or simple database
-- **State Management:** Context/Redux for sim list and creation state
+### Tech Stack (Required)
+- **Frontend Framework:** React 18+ with TypeScript
+- **State Management:** Jotai for atomic state management
+- **Styling:** Tailwind CSS 4.x
+- **Virtualization:** React Virtua for list performance
+- **Testing:** Playwright with MCP integration for E2E tests
+- **Build Tool:** Vite
+- **Package Manager:** pnpm
 
-### Data Models
-```
-Sim {
-  id: string (UUID)
-  log: string (max length TBD)
+### System Components
+- **Frontend:** React/TypeScript application with component-based architecture
+- **Data Storage:** Local Storage with JSON serialization (max 50MB total)
+- **State Management:** Jotai atoms for sim list, creation state, and UI state
+- **Virtualization:** React Virtua for efficient rendering of large sim lists
+- **Testing:** Playwright E2E tests with MCP server integration
+
+### Data Models & Constraints
+```typescript
+interface Sim {
+  id: string; // UUID v4, required
+  log: string; // Max 10,000 characters
   metadata: {
-    name?: string
-    description?: string
-    type?: string
-    tags?: string[]
-    [customField]: any
-  }
-  createdAt: timestamp
-  updatedAt: timestamp
+    name?: string; // Max 100 characters
+    description?: string; // Max 500 characters
+    type?: string; // Max 50 characters
+    tags?: string[]; // Max 10 tags, 30 chars each
+    icon?: string; // Base64 PNG, 16x16px, max 1KB
+    [customField]: string | number | boolean | string[]; // Max 20 custom fields
+  };
+  createdAt: number; // Unix timestamp
+  updatedAt: number; // Unix timestamp
 }
+
+// System Constraints
+const CONSTRAINTS = {
+  MAX_SIMS: 10000,
+  MAX_LOG_LENGTH: 10000,
+  MAX_METADATA_FIELDS: 20,
+  MAX_METADATA_VALUE_LENGTH: 1000,
+  MAX_ICON_SIZE_BYTES: 1024,
+  ICON_DIMENSIONS: { width: 16, height: 16 },
+  MAX_STORAGE_SIZE: 50 * 1024 * 1024, // 50MB
+  VIRTUAL_ITEM_HEIGHT: 120, // pixels
+} as const;
 ```
 
 ### Core APIs
-- `getSims()` - Retrieve all sims
-- `createSim(simData)` - Create new sim
-- `getSimById(id)` - Get specific sim details
+```typescript
+// Sim Management
+getSims(): Promise<Sim[]>
+createSim(simData: CreateSimInput): Promise<Sim>
+updateSim(id: string, updates: Partial<Sim>): Promise<Sim>
+deleteSim(id: string): Promise<void>
+getSimById(id: string): Promise<Sim | null>
+
+// Icon Management
+createIcon(canvas: ImageData): Promise<string> // Returns base64
+validateIcon(base64: string): boolean
+getIconTemplates(): IconTemplate[]
+
+// Storage Management
+getStorageUsage(): Promise<number>
+exportData(): Promise<string>
+importData(data: string): Promise<void>
+```
+
+### Testing Strategy
+- **E2E Testing:** Playwright with MCP integration
+- **Test Coverage:** Minimum 80% for critical paths
+- **Performance Testing:** Virtual scrolling with 1000+ items
+- **Visual Testing:** Screenshot comparisons for UI consistency
+- **Accessibility Testing:** WCAG 2.1 compliance
+
+**Required E2E Test Cases:**
+1. Create new sim with all metadata fields
+2. Create sim with micro-image icon
+3. View and scroll through large sim list (1000+ items)
+4. Search and filter functionality
+5. Data persistence across sessions
+6. Icon editor functionality
+7. Form validation edge cases
+8. Performance benchmarks
 
 ## Development Roadmap
 
 ### Phase 1: MVP Core (Immediate)
-- Basic sim data structure
-- Simple in-memory storage
-- Sim list component rendering all sims
-- Basic create sim form
+- TypeScript project setup with strict configuration
+- React + Jotai + Tailwind 4 base setup
+- Basic sim data structure with full TypeScript interfaces
+- Simple in-memory storage with constraints validation
+- Sim list component with React Virtua virtualization
+- Basic create sim form with validation
 - Generic metadata display component
+- Playwright setup with MCP integration
+- Core E2E test suite
 
-### Phase 2: Enhanced UI (Next)
-- Improved styling and layout
+### Phase 2: Micro-Image System (Next)
+- 16x16 pixel canvas editor component
+- Icon upload and validation system
+- Base64 encoding/decoding utilities
+- Icon template library
+- Integration with sim creation and display
+- Icon-specific E2E tests
+
+### Phase 3: Enhanced UI & Persistence (Following)
+- Local storage implementation with size monitoring
+- Improved styling and responsive layout
 - Search/filter functionality for sim list
 - Better handling of long log strings (truncation/expansion)
-- Form validation and error handling
-
-### Phase 3: Data Persistence (Following)
-- Local storage implementation
-- Data import/export capabilities
-- Backup and restore functionality
+- Advanced form validation and error handling
+- Performance optimization and monitoring
+- Comprehensive test coverage
 
 ## Logical Dependency Chain
 
-1. **Foundation:** Data models and basic storage structure
-2. **Core Display:** Sim list component that can render static data
-3. **Data Integration:** Connect list component to storage system
-4. **Creation Flow:** Add sim creation form and integrate with storage
-5. **Metadata System:** Generic metadata rendering and editing
-6. **Polish:** UI improvements, validation, error handling
+1. **Foundation:** TypeScript setup, data models, constraints system
+2. **Core Infrastructure:** React + Jotai + Tailwind 4 base architecture
+3. **Virtualization:** React Virtua integration for performance
+4. **Basic Display:** Sim list component rendering static data
+5. **Data Integration:** Connect components to state management
+6. **Creation Flow:** Sim creation form with validation
+7. **Micro-Image System:** Icon editor and display integration
+8. **Testing Infrastructure:** Playwright MCP setup and test suite
+9. **Storage System:** Local storage with constraints
+10. **Polish:** UI improvements, accessibility, performance optimization
+
+## Constraints & Limitations
+
+### Strict System Limits
+- **Maximum Sims:** 10,000 total
+- **Log Length:** 10,000 characters per sim
+- **Metadata Fields:** 20 custom fields maximum per sim
+- **Icon Size:** 16x16 pixels, 1KB maximum file size
+- **Storage:** 50MB total application storage
+- **Tags:** 10 tags maximum per sim, 30 characters each
+- **Custom Field Values:** 1,000 characters maximum
+
+### Performance Requirements
+- **List Rendering:** Handle 1000+ sims with <100ms render time
+- **Virtual Scrolling:** 60fps scrolling performance
+- **Memory Usage:** <100MB RAM for 10,000 sims
+- **Storage Access:** <50ms for data read/write operations
+
+### File Format Constraints
+- **Icons:** PNG format only, 16x16 pixels, Base64 encoded
+- **Data Export:** JSON format with schema validation
+- **Browser Support:** Modern browsers only (ES2022+)
 
 ## Risks and Mitigations
 
 ### Technical Challenges
-- **Risk:** Complex metadata structures difficult to render generically
-- **Mitigation:** Start with simple key-value rendering, iterate based on usage
+- **Risk:** React Virtua performance with complex sim rendering
+- **Mitigation:** Optimize sim item components, implement memo patterns
+
+- **Risk:** Local storage size limits with 10,000 sims
+- **Mitigation:** Implement compression, data cleanup, storage monitoring
+
+- **Risk:** Micro-image creation complexity for users
+- **Mitigation:** Provide templates, simple tools, clear constraints
 
 ### MVP Scope
-- **Risk:** Feature creep from advanced functionality described in extra ideas
-- **Mitigation:** Strict focus on viewing and creation only, defer all AI/interaction features
+- **Risk:** Feature creep from advanced functionality
+- **Mitigation:** Strict adherence to constraints, defer all AI features
 
 ### User Experience
-- **Risk:** Poor performance with large numbers of sims
-- **Mitigation:** Implement virtual scrolling if needed, start with simple rendering
+- **Risk:** 16x16 icons too small for meaningful design
+- **Mitigation:** Provide zoom view, templates, clear use case examples
+
+## Testing Requirements
+
+### Playwright MCP Integration
+- Configure Playwright to work with Task Master MCP server
+- Automated test generation from task specifications
+- CI/CD integration for test execution
+- Performance monitoring and regression detection
+
+### Required Test Coverage
+- **Unit Tests:** All utility functions and constraints validation
+- **Component Tests:** All React components with Jotai integration
+- **E2E Tests:** Complete user flows with data persistence
+- **Performance Tests:** Virtual scrolling and large dataset handling
+- **Accessibility Tests:** Screen reader and keyboard navigation
 
 ## Success Criteria
-- Users can view all their sims in a single, organized interface
-- Creating a new sim takes less than 30 seconds
+- Users can view 1000+ sims with smooth scrolling performance
+- Creating a new sim with icon takes less than 60 seconds
 - Metadata displays clearly regardless of structure
-- Application loads and renders sim list within 2 seconds
+- Application loads and renders sim list within 1 second
+- All E2E tests pass with 99%+ reliability
+- Storage usage never exceeds 50MB limit
+- Icon creation tool is intuitive for non-designers
 
 ## Appendix
 
 ### Technical Specifications
-- Maximum log length: 10,000 characters (subject to testing)
-- Metadata storage: Flexible JSON structure
-- Platform: Web application (mobile-responsive)
-- Browser support: Modern browsers (Chrome, Firefox, Safari, Edge)
+- **TypeScript:** Strict mode, no implicit any
+- **React:** Function components only, hooks pattern
+- **Jotai:** Atomic state pattern, minimal global state
+- **Tailwind 4:** Utility-first, custom design system
+- **Virtualization:** React Virtua with fixed item heights
+- **Testing:** Playwright with MCP, 80%+ coverage requirement
+
+### Browser Requirements
+- Chrome 100+, Firefox 100+, Safari 15+, Edge 100+
+- ES2022 support required
+- Local Storage API support
+- Canvas API for icon editor
+- File API for icon upload
+
+### Development Tools Required
+- pnpm package manager
+- TypeScript 5.0+
+- Playwright with MCP integration
+- ESLint with strict TypeScript rules
+- Prettier for code formatting
 
 ### Future Integration Points
 - AI summarization system (from extra ideas)
