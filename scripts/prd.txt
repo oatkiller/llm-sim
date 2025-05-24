@@ -1,12 +1,12 @@
 # Sim System - Core MVP PRD
 
 ## Overview
-The Sim System is a minimal character simulation viewer and creator. Users can create simple text-based entities ("sims") with basic metadata and view them in a clean list interface. This PRD focuses strictly on the essential viewing and creation functionality that can be built incrementally.
+The Sim System is a minimal character simulation viewer and creator. Users can create simple text-based entities ("sims") with flexible metadata and view them in a clean list interface. This PRD focuses strictly on the essential viewing and creation functionality that can be built incrementally.
 
 ## Problem Statement
 Users need a simple way to:
 - View a list of their created sims
-- Create new sims with basic information  
+- Create new sims with log content and metadata  
 - See basic details about each sim at a glance
 
 ## Core Features (MVP Only)
@@ -14,69 +14,78 @@ Users need a simple way to:
 ### 1. Sim List View
 **What it does:** Shows all sims in a simple scrollable list
 **How it works:**
-- Display sim name, description, and creation date
-- Show whether sim has content or is empty
+- Display sim log preview and creation date
+- Show whether sim has log content or is empty
 - Clean, readable layout
 - Handle up to 100 sims initially
 
 ### 2. Create New Sim
 **What it does:** Form to add a new sim
 **How it works:**
-- Basic form with name and description fields
-- Optional initial log. max 10,000 chars.
-- Optional metadata. these are key value pairs. can have up to 100. key name max 100 chars. value max 1000 chars.
+- Simple form with optional initial log content (0-10,000 chars)
+- Optional metadata as key-value pairs (key: 0-100 chars, value: 0-10,000 chars)
 - Simple validation (character limits)
 - Save to local storage
-- use a uuid4 to define a unique id string for each sim when its created.
+- Use UUID4 for unique sim and metadata IDs
 
 ### 3. Basic Sim Display
 **What it does:** Show individual sim details
 **How it works:**
-- Display log contents in textarea. editable. edits auto persist to local storage.
-- Display metadata in simple key-value pair table. 
+- Display log contents in textarea, editable, edits auto persist to local storage
+- Display metadata in simple key-value pair table
+- Allow adding, editing, and removing metadata
 - Show creation/update timestamps
-- Read-only view initially
 
 ## Data Structure
 ```
 Sim {
-  id: string (UUID)
-  name: string (required, max 100 chars)
-  description: string (optional, max 500 chars)  
-  content: string (optional, max 5000 chars)
+  id: string (UUID4)
+  log: string (0-10,000 chars)
   createdAt: timestamp
   updatedAt: timestamp
+}
+
+Metadata {
+  id: string (UUID4)
+  entity_id: string (foreign key to Sim.id)
+  key: string (0-100 chars)
+  value: string (0-10,000 chars)
 }
 ```
 
 ## Technical Requirements
 - React 19 with TypeScript
 - Local Storage for data persistence
-- Jotai
-- tailwind v4
-- radix-ui/primitives
+- Jotai for state management
+- Tailwind v4
+- Radix-UI/primitives
+- Zod for data validation
 - Responsive web interface
 - Works in modern browsers
 
 ## User Stories
 1. As a user, I want to see all my sims in one place
-2. As a user, I want to create a new sim with basic info
-3. As a user, I want to read sim details clearly
-4. As a user, I want my sims to persist between sessions
+2. As a user, I want to create a new sim with log content
+3. As a user, I want to add flexible metadata to my sims
+4. As a user, I want to read and edit sim details clearly
+5. As a user, I want my sims to persist between sessions
 
 ## Success Criteria
 - User can create a sim in under 30 seconds
 - Sim list loads in under 1 second
 - Interface works on desktop and mobile
 - Data persists reliably in local storage
+- Metadata system is intuitive and flexible
 
 ## Constraints
 - Maximum 100 sims for MVP
 - Text-only content (no images/media)
 - Local storage only (no cloud sync)
+- Log content limited to 10,000 characters
+- Metadata keys limited to 100 characters
+- Metadata values limited to 10,000 characters
 
 ## Out of Scope (Future Phases)
-- Advanced metadata
 - Search/filtering  
 - Icons/images
 - AI features

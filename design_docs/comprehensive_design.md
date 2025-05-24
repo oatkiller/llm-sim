@@ -25,27 +25,27 @@ This document contains the complete technical design, advanced features, and arc
 ```typescript
 interface Sim {
   id: string; // UUID v4, required
-  log: string; // Max 10,000 characters
-  metadata: {
-    name?: string; // Max 100 characters
-    description?: string; // Max 500 characters
-    type?: string; // Max 50 characters
-    tags?: string[]; // Max 10 tags, 30 chars each
-    icon?: string; // Base64 PNG, 16x16px, max 1KB
-    [customField]: string | number | boolean | string[]; // Max 20 custom fields
-  };
+  log: string; // 0-10,000 characters
   createdAt: number; // Unix timestamp
   updatedAt: number; // Unix timestamp
+}
+
+interface Metadata {
+  id: string; // UUID v4, required
+  entity_id: string; // Foreign key to Sim.id
+  key: string; // 0-100 characters - metadata field name
+  value: string; // 0-10,000 characters - metadata field value
 }
 
 // System Constraints
 const CONSTRAINTS = {
   MAX_SIMS: 10000,
   MAX_LOG_LENGTH: 10000,
-  MAX_METADATA_FIELDS: 20,
-  MAX_METADATA_VALUE_LENGTH: 1000,
-  MAX_ICON_SIZE_BYTES: 1024,
-  ICON_DIMENSIONS: { width: 16, height: 16 },
+  MIN_LOG_LENGTH: 0,
+  MAX_METADATA_KEY_LENGTH: 100,
+  MIN_METADATA_KEY_LENGTH: 0,
+  MAX_METADATA_VALUE_LENGTH: 10000,
+  MIN_METADATA_VALUE_LENGTH: 0,
   MAX_STORAGE_SIZE: 50 * 1024 * 1024, // 50MB
   VIRTUAL_ITEM_HEIGHT: 120, // pixels
 } as const;
@@ -60,10 +60,12 @@ updateSim(id: string, updates: Partial<Sim>): Promise<Sim>
 deleteSim(id: string): Promise<void>
 getSimById(id: string): Promise<Sim | null>
 
-// Icon Management
-createIcon(canvas: ImageData): Promise<string> // Returns base64
-validateIcon(base64: string): boolean
-getIconTemplates(): IconTemplate[]
+// Metadata Management
+getMetadata(entity_id: string): Promise<Metadata[]>
+createMetadata(entity_id: string, key: string, value: string): Promise<Metadata>
+updateMetadata(id: string, updates: Partial<Metadata>): Promise<Metadata>
+deleteMetadata(id: string): Promise<void>
+getMetadataByKey(entity_id: string, key: string): Promise<Metadata | null>
 
 // Storage Management
 getStorageUsage(): Promise<number>
@@ -79,13 +81,13 @@ importData(data: string): Promise<void>
 - **Accessibility Testing:** WCAG 2.1 compliance
 
 **Required E2E Test Cases:**
-1. Create new sim with all metadata fields
-2. Create sim with micro-image icon
+1. Create new sim with log content
+2. Add, edit, and delete metadata key-value pairs
 3. View and scroll through large sim list (1000+ items)
 4. Search and filter functionality
 5. Data persistence across sessions
-6. Icon editor functionality
-7. Form validation edge cases
+6. Form validation edge cases (character limits, required fields)
+7. Metadata system functionality (CRUD operations)
 8. Performance benchmarks
 
 ## Constraints & Limitations
