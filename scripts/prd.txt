@@ -1,5 +1,5 @@
 # Sim System - Core Viewing & Creation PRD
-<PRD>
+
 ## Overview
 The Sim System is a flexible character/entity simulation platform where "sims" are defined by evolving text logs and associated metadata. Users can create, view, and manage diverse simulated entities ranging from characters to objects to natural phenomena. This PRD focuses on the core MVP functionality: viewing existing sims and creating new ones with strict constraints and a minimal but powerful feature set.
 
@@ -313,4 +313,3 @@ importData(data: string): Promise<void>
 - AI summarization system (from extra ideas)
 - Sim interaction system (from extra ideas)
 - Advanced metadata management (from extra ideas) 
-</PRD>
