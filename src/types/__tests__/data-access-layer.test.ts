@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { 
   createSim, 
   getSim, 
@@ -19,26 +19,11 @@ import {
 import { generateUUID4, type UUID4 } from '../uuid';
 import { simIdsAtom } from '../atoms';
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-};
-
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
-
 describe('Data Access Layer', () => {
   beforeEach(() => {
     // Clear the store before each test
     dataStore.set(simIdsAtom, []);
-    localStorageMock.getItem.mockClear();
-    localStorageMock.setItem.mockClear();
-    localStorageMock.removeItem.mockClear();
-    localStorageMock.clear.mockClear();
+    // localStorage mock is already cleared globally in test setup
   });
 
   describe('Sim CRUD Operations', () => {

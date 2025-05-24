@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom';
 import { vi, beforeEach } from 'vitest';
 
-// Mock localStorage for testing
+// Global localStorage mock for all tests
+// This ensures consistent mocking across all test files
 const localStorageMock = {
   getItem: vi.fn(),
   setItem: vi.fn(),
