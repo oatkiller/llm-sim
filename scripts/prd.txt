@@ -1,0 +1,156 @@
+# Sim System - Core Viewing & Creation PRD
+
+## Overview
+The Sim System is a flexible character/entity simulation platform where "sims" are defined by evolving text logs and associated metadata. Users can create, view, and manage diverse simulated entities ranging from characters to objects to natural phenomena. This PRD focuses on the core MVP functionality: viewing existing sims and creating new ones.
+
+## Problem Statement
+Users need a simple, intuitive way to:
+- View all their simulated entities (sims) and their details at a glance
+- Create new sims quickly and easily
+- Access both the simulation logs and metadata for each sim in an organized format
+
+## Core Features
+
+### 1. Sim List View (Primary Feature)
+**What it does:** Displays a comprehensive list of all sims with their logs and metadata
+**Why it's important:** This is the main interface users will interact with - the central hub of the application
+**How it works:**
+- Renders a scrollable list of all sims in the system
+- Each sim entry shows:
+  - The complete log string (with appropriate formatting/truncation for long logs)
+  - All associated metadata in a generic, readable format
+  - Visual distinction between sims with empty logs vs populated logs
+
+### 2. New Sim Creation
+**What it does:** Allows users to create new sims with initial configuration
+**Why it's important:** Entry point for users to populate their simulation world
+**How it works:**
+- Simple form interface to create a new sim
+- Optional initial log text input
+- Basic metadata fields (name, type, description, tags)
+- Creates sim with empty log if no initial text provided
+
+### 3. Generic Metadata Display
+**What it does:** Renders sim metadata in a flexible, extensible format
+**Why it's important:** Supports user-defined metadata without constraining the data structure
+**How it works:**
+- Dynamic rendering of key-value pairs
+- Support for text descriptions, IDs, titles, tags, and custom attributes
+- Clean, readable presentation regardless of metadata structure
+
+## User Experience
+
+### User Personas
+- **Simulation Enthusiasts:** Users who enjoy creating and observing character/entity interactions
+- **Storytellers:** Users who want to track narrative elements and character development
+- **Researchers:** Users experimenting with AI-driven simulations
+
+### Key User Flows
+1. **View Sims Flow:**
+   - User opens application
+   - Sees complete list of all sims
+   - Can scroll through and read sim logs and metadata
+   - Easily identifies which sims need attention (empty logs)
+
+2. **Create Sim Flow:**
+   - User clicks "Create New Sim" button
+   - Fills out basic information (name, optional initial log)
+   - Submits form
+   - New sim appears in the main list
+
+### UI/UX Considerations
+- Clean, scannable list layout
+- Clear visual hierarchy between log content and metadata
+- Responsive design for different screen sizes
+- Intuitive creation flow with minimal friction
+
+## Technical Architecture
+
+### System Components
+- **Frontend:** React/Vue application with component-based architecture
+- **Data Storage:** JSON-based local storage or simple database
+- **State Management:** Context/Redux for sim list and creation state
+
+### Data Models
+```
+Sim {
+  id: string (UUID)
+  log: string (max length TBD)
+  metadata: {
+    name?: string
+    description?: string
+    type?: string
+    tags?: string[]
+    [customField]: any
+  }
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+```
+
+### Core APIs
+- `getSims()` - Retrieve all sims
+- `createSim(simData)` - Create new sim
+- `getSimById(id)` - Get specific sim details
+
+## Development Roadmap
+
+### Phase 1: MVP Core (Immediate)
+- Basic sim data structure
+- Simple in-memory storage
+- Sim list component rendering all sims
+- Basic create sim form
+- Generic metadata display component
+
+### Phase 2: Enhanced UI (Next)
+- Improved styling and layout
+- Search/filter functionality for sim list
+- Better handling of long log strings (truncation/expansion)
+- Form validation and error handling
+
+### Phase 3: Data Persistence (Following)
+- Local storage implementation
+- Data import/export capabilities
+- Backup and restore functionality
+
+## Logical Dependency Chain
+
+1. **Foundation:** Data models and basic storage structure
+2. **Core Display:** Sim list component that can render static data
+3. **Data Integration:** Connect list component to storage system
+4. **Creation Flow:** Add sim creation form and integrate with storage
+5. **Metadata System:** Generic metadata rendering and editing
+6. **Polish:** UI improvements, validation, error handling
+
+## Risks and Mitigations
+
+### Technical Challenges
+- **Risk:** Complex metadata structures difficult to render generically
+- **Mitigation:** Start with simple key-value rendering, iterate based on usage
+
+### MVP Scope
+- **Risk:** Feature creep from advanced functionality described in extra ideas
+- **Mitigation:** Strict focus on viewing and creation only, defer all AI/interaction features
+
+### User Experience
+- **Risk:** Poor performance with large numbers of sims
+- **Mitigation:** Implement virtual scrolling if needed, start with simple rendering
+
+## Success Criteria
+- Users can view all their sims in a single, organized interface
+- Creating a new sim takes less than 30 seconds
+- Metadata displays clearly regardless of structure
+- Application loads and renders sim list within 2 seconds
+
+## Appendix
+
+### Technical Specifications
+- Maximum log length: 10,000 characters (subject to testing)
+- Metadata storage: Flexible JSON structure
+- Platform: Web application (mobile-responsive)
+- Browser support: Modern browsers (Chrome, Firefox, Safari, Edge)
+
+### Future Integration Points
+- AI summarization system (from extra ideas)
+- Sim interaction system (from extra ideas)
+- Advanced metadata management (from extra ideas) 
