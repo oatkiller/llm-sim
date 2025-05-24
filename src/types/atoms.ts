@@ -1,4 +1,5 @@
 import { atomFamily, atomWithStorage } from 'jotai/utils';
+import { atom } from 'jotai';
 import type { UUID4 } from './uuid';
 import type { Sim } from './sim';
 import type { Metadata } from './metadata';
@@ -62,6 +63,27 @@ export const simIdsAtom = atomWithStorage<UUID4[]>('sim-ids', [], storage, {
 });
 
 /**
+ * Derived atom that combines sim data with metadata for UI display
+ * This automatically updates when sims or metadata change
+ */
+export const simsWithMetadataAtom = atom((get) => {
+  const simIds = get(simIdsAtom);
+  
+  return simIds.map(id => {
+    const sim = get(simAtomFamily(id));
+    const metadata = get(metadataAtomFamily(id));
+    
+    if (!sim) return null;
+    
+    return {
+      ...sim,
+      metadataAtom: metadataAtomFamily(id), // Atom to access metadata when needed
+      metadataCount: metadata.length // Count for quick UI display
+    };
+  }).filter(Boolean) as Array<Sim & { metadataAtom: MetadataAtom; metadataCount: number }>;
+});
+
+/**
  * Lazy accessor function for sim atoms
  * Only creates atom when actually needed
  * @param id - UUID4 of the sim
@@ -100,6 +122,7 @@ export function cleanupSimAtoms(entityId: UUID4) {
  */
 export type SimAtom = ReturnType<typeof getSimAtom>;
 export type MetadataAtom = ReturnType<typeof getMetadataAtom>;
+export type SimWithMetadata = Sim & { metadataAtom: MetadataAtom; metadataCount: number };
 
 /**
  * Constants for storage keys and configuration

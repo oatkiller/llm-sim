@@ -1,25 +1,17 @@
 import React, { useState } from 'react';
+import { useAtom } from 'jotai';
 import { createSim, createMetadata } from './types/data-access-layer';
-import type { UUID4 } from './types/uuid';
-
-interface Sim {
-  id: UUID4;
-  log: string;
-  createdAt: number;
-  updatedAt: number;
-}
+import { simsWithMetadataAtom } from './types/atoms';
 
 interface MetadataField {
   key: string;
   value: string;
 }
 
-interface SimWithMetadata extends Sim {
-  metadataCount?: number;
-}
-
 const App: React.FC = () => {
-  const [sims, setSims] = useState<SimWithMetadata[]>([]);
+  // Use Jotai atom for sims data - this automatically loads from localStorage
+  const [sims] = useAtom(simsWithMetadataAtom);
+  
   const [newSimLog, setNewSimLog] = useState('');
   const [metadataFields, setMetadataFields] = useState<MetadataField[]>([{ key: '', value: '' }]);
   const [isCreating, setIsCreating] = useState(false);
@@ -61,26 +53,17 @@ const App: React.FC = () => {
         const newSim = result.data;
         
         // Create metadata for the sim
-        let metadataCount = 0;
         for (const field of validMetadataFields) {
-          const metadataResult = await createMetadata({
+          await createMetadata({
             entity_id: newSim.id,
             key: field.key.trim(),
             value: field.value.trim()
           });
-          
-          if (metadataResult.success) {
-            metadataCount++;
-          }
         }
         
-        // Add the sim with metadata count to the list
-        const simWithMetadata: SimWithMetadata = {
-          ...newSim,
-          metadataCount
-        };
+        // No need to manually update sims state - the atom will automatically update
+        // and trigger a re-render when the data changes in localStorage
         
-        setSims(prev => [...prev, simWithMetadata]);
         setNewSimLog('');
         setMetadataFields([{ key: '', value: '' }]);
       } else {
@@ -224,7 +207,7 @@ const App: React.FC = () => {
                     <div className="text-sm text-gray-500">
                       Created: {new Date(sim.createdAt).toLocaleString()}
                     </div>
-                    {sim.metadataCount !== undefined && sim.metadataCount > 0 && (
+                    {sim.metadataCount > 0 && (
                       <div className="text-sm text-blue-600 font-medium" data-testid="metadata-count">
                         {sim.metadataCount} metadata field{sim.metadataCount !== 1 ? 's' : ''}
                       </div>
