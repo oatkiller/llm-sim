@@ -6,7 +6,6 @@ import type {
   UpdateMetadataInput 
 } from './metadata';
 import { 
-  isValidMetadata, 
   truncateKey, 
   truncateValue,
   METADATA_CONSTRAINTS 
@@ -27,20 +26,16 @@ export interface MetadataOperationResult<T = Metadata> {
  * @returns Operation result with created metadata or error
  */
 export function createMetadata(input: CreateMetadataInput): MetadataOperationResult<Metadata> {
-  // Validate input
-  if (!isValidMetadata(input)) {
-    return {
-      success: false,
-      error: 'Invalid metadata: key or value length exceeds constraints'
-    };
-  }
+  // Truncate key and value to ensure they fit within constraints
+  const truncatedKey = truncateKey(input.key);
+  const truncatedValue = truncateValue(input.value);
   
-  // Ensure key and value are within constraints (truncate if needed)
+  // Create the metadata object
   const metadata: Metadata = {
     id: generateUUID4(),
     entity_id: input.entity_id,
-    key: truncateKey(input.key),
-    value: truncateValue(input.value)
+    key: truncatedKey,
+    value: truncatedValue
   };
   
   return {
@@ -59,14 +54,6 @@ export function updateMetadata(
   existing: Metadata, 
   updates: UpdateMetadataInput
 ): MetadataOperationResult<Metadata> {
-  // Validate updates
-  if (!isValidMetadata(updates)) {
-    return {
-      success: false,
-      error: 'Invalid metadata updates: key or value length exceeds constraints'
-    };
-  }
-  
   // Apply updates with truncation
   const updated: Metadata = {
     ...existing,
