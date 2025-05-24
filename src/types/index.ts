@@ -41,10 +41,10 @@ export {
 // Metadata helper functions
 export type { MetadataOperationResult } from './metadata-helpers';
 export {
-  createMetadata,
-  updateMetadata,
+  createMetadata as createMetadataHelper,
+  updateMetadata as updateMetadataHelper,
   getMetadataForEntity,
-  findMetadataByKey,
+  findMetadataByKey as findMetadataByKeyHelper,
   wouldExceedMetadataLimit,
   removeEntityMetadata,
   removeMetadataById,
@@ -61,4 +61,37 @@ export {
   getMetadataAtom,
   cleanupSimAtoms,
   STORAGE_CONFIG
-} from './atoms'; 
+} from './atoms';
+
+// Zod schemas for validation
+export {
+  SimSchema,
+  CreateSimInputSchema,
+  UpdateSimInputSchema
+} from './sim-schemas';
+export {
+  MetadataSchema,
+  CreateMetadataInputSchema,
+  UpdateMetadataInputSchema,
+  MetadataArraySchema
+} from './metadata-schemas';
+
+// Data access layer with validation
+export type { DataResult } from './data-access-layer';
+export {
+  dataStore,
+  createSim,
+  getSim,
+  getAllSims,
+  updateSim,
+  deleteSim,
+  createMetadata,
+  getMetadata,
+  getAllMetadataForEntity,
+  updateMetadata,
+  deleteMetadata,
+  deleteAllMetadataForEntity,
+  simExists,
+  getMetadataCount,
+  findMetadataByKey
+} from './data-access-layer'; 
