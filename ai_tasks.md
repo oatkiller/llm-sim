@@ -1,1 +1,3 @@
-1. the sim creation form should not require a log. log is optional.
+1. data persistence is not working. create an architecture diagram of how the jotai storage atoms, domain models, and react are all working together. its not working.
+2. all fields in a sim are optional. a totally blank sim can be created. it will still have a unique id. users can create a sim with just 1 metadata field and no log. just a log and no metadata. etc.
+3. make the metadata value input a textarea with a row height of 2. i still want users to be able to drag and resize it with native browser controls if they want. this way it can act like a text input or a textarea dynamically.
