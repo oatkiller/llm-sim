@@ -1,1 +1,1 @@
-1. use the same local storage mock in all tests. some are using a global one and others a module local one
+1. the sim creation form should not require a log. log is optional.

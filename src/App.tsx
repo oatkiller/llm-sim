@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { createSim } from './types/data-access-layer';
+import { createSim, createMetadata } from './types/data-access-layer';
 import type { UUID4 } from './types/uuid';
 
 interface Sim {
@@ -9,11 +9,35 @@ interface Sim {
   updatedAt: number;
 }
 
+interface MetadataField {
+  key: string;
+  value: string;
+}
+
+interface SimWithMetadata extends Sim {
+  metadataCount?: number;
+}
+
 const App: React.FC = () => {
-  const [sims, setSims] = useState<Sim[]>([]);
+  const [sims, setSims] = useState<SimWithMetadata[]>([]);
   const [newSimLog, setNewSimLog] = useState('');
+  const [metadataFields, setMetadataFields] = useState<MetadataField[]>([{ key: '', value: '' }]);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleAddMetadataField = () => {
+    setMetadataFields(prev => [...prev, { key: '', value: '' }]);
+  };
+
+  const handleRemoveMetadataField = (index: number) => {
+    setMetadataFields(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMetadataFieldChange = (index: number, field: 'key' | 'value', value: string) => {
+    setMetadataFields(prev => prev.map((item, i) => 
+      i === index ? { ...item, [field]: value } : item
+    ));
+  };
 
   const handleCreateSim = async () => {
     if (!newSimLog.trim()) {
@@ -21,15 +45,44 @@ const App: React.FC = () => {
       return;
     }
 
+    // Filter out empty metadata fields (HTML maxLength prevents length violations)
+    const validMetadataFields = metadataFields.filter(field => 
+      field.key.trim() && field.value.trim()
+    );
+
     setIsCreating(true);
     setError(null);
 
     try {
+      // Create the sim first
       const result = await createSim({ log: newSimLog.trim() });
       
       if (result.success && result.data) {
-        setSims(prev => [...prev, result.data!]);
+        const newSim = result.data;
+        
+        // Create metadata for the sim
+        let metadataCount = 0;
+        for (const field of validMetadataFields) {
+          const metadataResult = await createMetadata({
+            entity_id: newSim.id,
+            key: field.key.trim(),
+            value: field.value.trim()
+          });
+          
+          if (metadataResult.success) {
+            metadataCount++;
+          }
+        }
+        
+        // Add the sim with metadata count to the list
+        const simWithMetadata: SimWithMetadata = {
+          ...newSim,
+          metadataCount
+        };
+        
+        setSims(prev => [...prev, simWithMetadata]);
         setNewSimLog('');
+        setMetadataFields([{ key: '', value: '' }]);
       } else {
         setError(result.error || 'Failed to create sim');
       }
@@ -71,9 +124,74 @@ const App: React.FC = () => {
                 {newSimLog.length}/10,000 characters
               </div>
             </div>
+
+            {/* Metadata Fields */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Metadata (Optional)
+              </label>
+              <div className="space-y-3">
+                {metadataFields.map((field, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-start">
+                    <div className="col-span-4">
+                      <input
+                        type="text"
+                        placeholder="Key"
+                        value={field.key}
+                        onChange={(e) => handleMetadataFieldChange(index, 'key', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        maxLength={100}
+                        disabled={isCreating}
+                        data-testid={`metadata-key-${index}`}
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        {field.key.length}/100
+                      </div>
+                    </div>
+                    <div className="col-span-6">
+                      <input
+                        type="text"
+                        placeholder="Value"
+                        value={field.value}
+                        onChange={(e) => handleMetadataFieldChange(index, 'value', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        maxLength={10000}
+                        disabled={isCreating}
+                        data-testid={`metadata-value-${index}`}
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        {field.value.length}/10,000
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      {metadataFields.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMetadataField(index)}
+                          className="px-2 py-2 text-red-600 hover:text-red-800 text-sm"
+                          disabled={isCreating}
+                          data-testid={`remove-metadata-${index}`}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={handleAddMetadataField}
+                  className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md hover:bg-blue-50"
+                  disabled={isCreating}
+                  data-testid="add-metadata-field"
+                >
+                  Add Metadata Field
+                </button>
+              </div>
+            </div>
             
             {error && (
-              <div className="text-red-600 text-sm">
+              <div className="text-red-600 text-sm" data-testid="error-message">
                 {error}
               </div>
             )}
@@ -102,8 +220,15 @@ const App: React.FC = () => {
             <div className="space-y-4">
               {sims.map((sim) => (
                 <div key={sim.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="text-sm text-gray-500 mb-2">
-                    Created: {new Date(sim.createdAt).toLocaleString()}
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="text-sm text-gray-500">
+                      Created: {new Date(sim.createdAt).toLocaleString()}
+                    </div>
+                    {sim.metadataCount !== undefined && sim.metadataCount > 0 && (
+                      <div className="text-sm text-blue-600 font-medium" data-testid="metadata-count">
+                        {sim.metadataCount} metadata field{sim.metadataCount !== 1 ? 's' : ''}
+                      </div>
+                    )}
                   </div>
                   <div className="text-gray-800">
                     {sim.log.length > 200 ? `${sim.log.substring(0, 200)}...` : sim.log}
